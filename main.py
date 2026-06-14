@@ -1,14 +1,14 @@
 """
-ATLAS AI — Simple single-file FastAPI app with LangChain + LangGraph.
+ATLAS AI — FastAPI backend + Streamlit frontend with LangChain + LangGraph.
 
 Run locally:
-    uvicorn main:app --reload
+    uvicorn main:app --reload          # API on :8000
+    streamlit run streamlit_app.py     # UI on :8501
 
 Env vars (.env):
-    LLM_PROVIDER=bedrock|anthropic|ollama
-    AWS_REGION=us-east-1
-    BEDROCK_MODEL_ID=anthropic.claude-3-5-sonnet-20241022-v2:0
+    LLM_PROVIDER=anthropic|ollama
     ANTHROPIC_API_KEY=...
+    API_BASE_URL=http://localhost:8000   # used by streamlit_app.py
 """
 
 import os
@@ -25,9 +25,7 @@ from langgraph.prebuilt import create_react_agent
 # ---------------------------------------------------------------------------
 # Config (env vars)
 # ---------------------------------------------------------------------------
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "bedrock")
-AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
-BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-5-sonnet-20241022-v2:0")
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "anthropic")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
 # ---------------------------------------------------------------------------
@@ -38,10 +36,7 @@ vector_store = None
 
 
 def build_llm():
-    if LLM_PROVIDER == "bedrock":
-        from langchain_aws import ChatBedrockConverse
-        return ChatBedrockConverse(model=BEDROCK_MODEL_ID, region_name=AWS_REGION)
-    elif LLM_PROVIDER == "anthropic":
+    if LLM_PROVIDER == "anthropic":
         from langchain_anthropic import ChatAnthropic
         return ChatAnthropic(model="claude-3-5-sonnet-20241022", api_key=ANTHROPIC_API_KEY)
     else:
@@ -50,12 +45,8 @@ def build_llm():
 
 
 def build_embeddings():
-    if LLM_PROVIDER == "bedrock":
-        from langchain_aws import BedrockEmbeddings
-        return BedrockEmbeddings(model_id="amazon.titan-embed-text-v2:0", region_name=AWS_REGION)
-    else:
-        from langchain_huggingface import HuggingFaceEmbeddings
-        return HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+    from langchain_huggingface import HuggingFaceEmbeddings
+    return HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
 
 
 def build_tools(store: InMemoryVectorStore):
@@ -106,7 +97,7 @@ async def lifespan(app: FastAPI):
     yield  # app runs here
 
 
-app = FastAPI(title="ATLAS AI — Simple", lifespan=lifespan)
+app = FastAPI(title="ATLAS AI", lifespan=lifespan)
 
 
 # ---------------------------------------------------------------------------
